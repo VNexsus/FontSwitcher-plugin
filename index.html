@@ -1,0 +1,66 @@
+<!--
+ (c) Copyright VNexus 2025
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ -->
+ <!DOCTYPE html>
+<html>
+	<head>
+	  <meta charset="UTF-8" />
+	  <title>Замена шрифтов</title>
+	  <script type="text/javascript" src="../v1/plugins.js"></script>
+	  <script type="text/javascript" src="../v1/plugins-ui.js"></script>
+	  <link rel="stylesheet" href="resources/css/plugins.css" />
+	  <link rel="stylesheet" href="resources/css/app.css" />
+	  <link rel="stylesheet" href="resources/css/custom.css" />
+	  <script type="text/javascript" src="scripts/code.js"></script>
+	</head>
+	<body>
+	  <div class="wrap">
+		<div id="fontsList" class="font-lists">
+			<div class="fonts-col">
+				<div class="title">Используемые шрифты</div>
+				<div class="selectbox" id="leftBox">
+					<div class="search-container"><input id="usedSearchBox" type="search" placeholder="Введите название" class="s2search form-control"><span class="clear-btn" id="usedClearBtn"></span></div>
+					<div id="usedFonts" class="s2list" style="overflow: hidden auto; padding: 0px;">
+						<div id="usedFontsList" class="font-list">
+							<div class="asc-plugin-loader" style="position: initial; transform: none!important; top: 0; margin: 0; padding: 4px 0; line-height: inherit;">
+								<div class="asc-loader-image asc-loader-image-dark" style="width: 16px; height: 16px; margin-right: 3px"></div>
+								<span>Загрузка...</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="fonts-col">
+				<div class="title">Доступные шрифты</div>
+				<div class="selectbox" id="rightBox">
+					<div class="search-container"><input id="availableSearchBox" type="search" placeholder="Введите название" class="s2search form-control"><span class="clear-btn" id="availableClearBtn"></span></div>
+					<div id="availableFonts" class="s2list" style="overflow: hidden auto; padding: 0px;">
+						<div id="allFontsList" class="font-list">
+							<div class="asc-plugin-loader" style="position: initial; transform: none!important; top: 0; margin: 0; padding: 4px 0; line-height: inherit;">
+								<div class="asc-loader-image asc-loader-image-dark" style="width: 16px; height: 16px; margin-right: 3px"></div>
+								<span>Загрузка...</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div style="display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 8px; padding-top: 20px;">
+				<button id="replaceBtn" type="button" class="btn-text-default" disabled="" style="min-width: 120px; display: block;">Заменить</button>
+				<button id="cancelBtn" type="button" class="btn-text-default" style="display: block; min-width: 120px; margin-top: 8px;">Отменить</button>
+			</div>
+		</div>
+	  </div>
+	</body>
+</html>

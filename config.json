@@ -1,0 +1,24 @@
+{
+  "name": "Замена шрифтов",
+  "guid": "asc.{33BB9E72-345D-CFE3-514C-9BBB6E462AE5}",
+  "version": "1.4",
+  "variations": [
+    {
+      "description": "Список шрифтов презентации (только названия, отрисованы своими шрифтами)",
+      "url": "index.html",
+      "icons": [
+        "resources/img/icon.png",
+        "resources/img/icon@2x.png"
+      ],
+      "isViewer": false,
+      "EditorsSupport": [
+        "slide"
+      ],
+      "isVisual": true,
+      "isModal": false,
+      "isDisplayedInViewer": true,
+      "isSystem": false,
+	  "size": [ 602, 250 ]
+    }
+  ]
+}
