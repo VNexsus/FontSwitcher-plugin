@@ -24,6 +24,7 @@
 	var systemViewLocked = true;
 	var fontThumbnailsBinary = null;
 	var fontThumbnailsBinaryMask = null;
+	var recalcId = null;
 	
 	var theme = "light";
 
@@ -56,7 +57,22 @@
 		window.Asc.plugin.resizeWindow(600, 250, 600, 250, 800, 450);
 		ensureUI();
 		loadBinFonts();
+		recalcId = parent.editor.getLogicDocument().RecalcId; 
 	};
+
+	window.Asc.plugin.onExternalMouseUp = function() {
+        var evt = document.createEvent("MouseEvents");
+        evt.initMouseEvent("mouseup", true, true, window, 1, 0, 0, 0, 0, false, false, false, false, 0, null);
+        document.dispatchEvent(evt);
+		
+		var result = parent.editor.getLogicDocument().RecalcId;
+		if(recalcId != result) {
+			recalcId = result;
+			collectFonts(true);
+		}
+    };
+
+
 
 	window.Asc.plugin.onThemeChanged = function(theme) {
 		window.Asc.plugin.onThemeChangedBase(theme);
@@ -475,6 +491,7 @@
 
 			for (var i = 0; i < slidesCount; i++) {
 				var slide = pres.GetSlideByIndex(i);
+				// shapes
 				var shapes = (slide && slide.GetAllShapes && slide.GetAllShapes()) || [];
 				for (var s = 0; s < shapes.length; s++) {
 					var sh = shapes[s];
@@ -529,6 +546,90 @@
 								}
 								else 
 									defaultFontUsed = true;
+							}
+						}
+					}
+				}
+				// tables
+				var drawings = (slide && slide.GetAllDrawings && slide.GetAllDrawings()) || []
+				for (var d = 0; d < drawings.length; d++) {
+					if(drawings[d].Drawing) {
+						var drawing = drawings[d].Drawing;
+						var tables = (drawing.GetElement && drawing.GetElement().GetAllTables && drawing.GetElement().GetAllTables()) || [];
+						for(var t = 0; t < tables.length; t++) {
+							var table = tables[t];
+							var paras = table.GetAllParagraphs();
+							for(var p = 0; p < paras.length; p++) {
+								for( var e = 0; e < paras[p].GetElementsCount(); e++) {
+									var el = paras[p].GetElement(e);
+									add(el.Pr.Get_FontFamily() || 'Arial');
+								}
+							}
+						}
+					}
+				}
+				// charts
+				var charts = (slide && slide.GetAllCharts && slide.GetAllCharts()) || [];
+				for(var c = 0; c < charts.length; c++) {
+					var chart = charts[c];
+					// titles
+					var titles = chart.Chart.getAllTitles();
+					for(var t = 0; t < titles.length; t++) {
+						var title = titles[t];
+						var content = title.getDocContent();
+						for(var x = 0; x < content.GetElementsCount(); x++) {
+							var para = content.GetElement(x);
+							for(var r = 0; r < para.GetElementsCount(); r++) {
+								var run = para.GetElement(r);
+								add(run.CompiledPr.FontFamily.Name);
+							}
+						}
+					}
+					// legend
+					var legend = chart.Chart.getLegend();
+					var entries = legend.calcEntryes;
+					for(var e = 0; e < entries.length; e++) {
+						var content = entries[e].txBody.content.Content;
+						for(var p = 0; p < content.length; p++) {
+							var para = content[p];
+							for(var r = 0; r < para.GetElementsCount(); r++) {
+								var run = para.GetElement(r);
+								add(run.CompiledPr.FontFamily.Name);
+							}
+						}
+					}
+					// axes
+					var axes = chart.Chart.getAllAxes();
+					for(var a = 0; a < axes.length; a++) {
+						if(axes[a].labels) {
+							var labels = axes[a].labels.aLabels;
+							for(var l = 0; l < labels.length; l++) {
+								var content = labels[l].getDocContent();
+								for(var p = 0; p < content.GetElementsCount(); p++) {
+									var para = content.GetElement(p);
+									for(var r = 0; r < para.GetElementsCount(); r++) {
+										var run = para.GetElement(r);
+										add(run.CompiledPr.FontFamily.Name);
+									}
+								}
+							}
+						}
+					}
+					// data labels
+					var allseries = chart.Chart.getAllSeries();
+					for(var s = 0; s < allseries.length; s++) {
+						var series = allseries[s];
+						var points = series.getNumPts();
+						for(var p = 0; p < points.length; p++) {
+							if(points[p].compiledDlb) {
+								var content = points[p].compiledDlb.getDocContent();
+								for(var i = 0; i < content.GetElementsCount(); i++) {
+									var para = content.GetElement(i);
+									for(var r = 0; r < para.GetElementsCount(); r++) {
+										var run = para.GetElement(r);
+										add(run.CompiledPr.FontFamily.Name);
+									}
+								}
 							}
 						}
 					}
@@ -630,6 +731,14 @@
 				if (ok){ try { run.SetTextPr && run.SetTextPr(tp); changed++; return true; } catch(e){} }
 				return false;
 			}
+			
+			function setPara(para, name) {
+				var tp = Api.CreateTextPr();
+				if (tp.SetFontName) tp.SetFontName(name);
+				if (tp.SetFontFamily) tp.SetFontFamily(name);
+				tp.TextPr.FontFamily = {Name: name, Index: -1};
+				para.Apply_TextPr(tp, true, true);
+			}
 
 			function setElDefault(el, name){
 				try {
@@ -672,18 +781,24 @@
 				return a === fromNorm;
 			}
 
+			function replaceObjFont(obj, textPr, drawingDocument) {
+				AscFormat.CheckObjectTextPr(obj, textPr, drawingDocument);
+				Api.checkChangesSize();
+			}
+
 			function processSlide(slide, includeImplicit){
+				// shapes
 				var shapes = slide.GetAllShapes();
 				for (var s=0; s<shapes.length; s++){
 					var sh = shapes[s];
 					var dc = sh.GetDocContent && sh.GetDocContent();
 					if (!dc) continue;
 					var ec = 0; try { ec = dc.GetElementsCount(); } catch(e){}
-					for (var i=0;i<ec;i++){
+					for (var i = 0; i < ec; i++){
 						var el = dc.GetElement(i);
 						if (!el) continue;
 						var rc = 0; try { rc = el.GetElementsCount(); } catch(e){}
-						for (var r=0;r<rc;r++){
+						for(var r = 0; r < rc; r++){
 							var run = el.GetElement(r);
 							if (!run) continue;
 							try {
@@ -692,6 +807,128 @@
 								if ((rn && match(rn)) || (includeImplicit && !rn && match(null) && rtxt && /\S/.test(String(rtxt)) && !isPlaceholderText(rtxt)))
 								setRun(run, toN);
 							} catch(e){}
+						}
+					}
+				}
+				// tables
+				var drawings = (slide && slide.GetAllDrawings && slide.GetAllDrawings()) || []
+				for (var d = 0; d < drawings.length; d++) {
+					var drawing = drawings[d].Drawing;
+					var tables = (drawing.GetElement && drawing.GetElement().GetAllTables && drawing.GetElement().GetAllTables()) || [];
+					for(var t = 0; t < tables.length; t++) {
+						var table = tables[t];
+						var paras = table.GetAllParagraphs();
+						for(var p = 0; p < paras.length; p++) {
+							for( var e = 0; e < paras[p].GetElementsCount(); e++) {
+								var el = paras[p].GetElement(e);
+								if(el.Pr.Get_FontFamily() == fromN || (!el.Pr.Get_FontFamily() && fromN == 'Arial'))
+									el.Pr.SetFontFamily(toN), changed++;
+							}
+						}
+					}
+				}
+				// charts
+				var charts = (slide && slide.GetAllCharts && slide.GetAllCharts()) || [];
+				var tp = Api.CreateTextPr();
+				tp.SetFontFamily(toN);
+				for(var c = 0; c < charts.length; c++) {
+					const chart = charts[c].Chart;
+					// titles
+					let titles = chart.getAllTitles();
+					for(var t = 0; t < titles.length; t++) {
+						var title = titles[t];
+						var content = title.getDocContent();
+						if(content.GetCalculatedTextPr && content.GetCalculatedTextPr().FontFamily.Name == fromN) {
+							replaceObjFont(title, tp.TextPr, chart.getDrawingDocument());
+						}
+						for(var x = 0; x < content.GetElementsCount(); x++) {
+							var para = content.GetElement(x);
+							para.SelectAll();
+							for(var r = 0; r < para.GetElementsCount(); r++) {
+								var run = para.GetElement(r);
+								if(run.CompiledPr.FontFamily.Name == fromN){
+									run.ApplyFontFamily(toN),
+									run.GetText() != '' && changed++;
+								}
+							}
+						}
+					}
+					// legend
+					var legend = chart.getLegend();
+					if((legend.txPr.content.Content[0].CompiledPr.Pr && legend.txPr.content.Content[0].CompiledPr.Pr.TextPr.RFonts.Ascii.Name == fromN) || chart.txPr.content.Content[0].GetCalculatedTextPr().FontFamily.Name == fromN) {
+						replaceObjFont(legend, tp.TextPr, chart.getDrawingDocument());
+					}
+					var entries = legend.legendEntryes;
+					for(var e = 0; e < entries.length; e++) {
+						var entry = entries[e];
+						var content = entry.txPr.content.Content;
+						for(var p = 0; p < content.length; p++) {
+							let para = content[p];
+							if(legend.calcEntryes[entry.idx] && legend.calcEntryes[entry.idx].txBody.content.Content[0].GetCalculatedTextPr().FontFamily.Name == fromN) {
+								replaceObjFont(entry, tp.TextPr, chart.getDrawingDocument());
+								changed++;
+							}
+						}
+					}
+					entries = legend.calcEntryes;
+					for(var e = 0; e < entries.length; e++) {
+						var entry = entries[e];
+						var content = entry.txBody.content.Content;
+						for(var p = 0; p < content.length; p++) {
+							let para = content[p];
+							if(para.CompiledPr.Pr.TextPr && para.CompiledPr.Pr.TextPr.RFonts.Ascii.Name == fromN) {
+								replaceObjFont(legend, tp.TextPr, chart.getDrawingDocument());
+								changed++;
+							}
+						}
+					}
+					// axes
+					var axes = chart.getAllAxes();
+					for(var a = 0; a < axes.length; a++) {
+						if(axes[a].labels) {
+							var labels = axes[a].labels.aLabels;
+							for(var l = 0; l < labels.length; l++) {
+								var label = labels[l];
+								var content = label.getDocContent();
+								if(content.GetCalculatedTextPr && content.GetCalculatedTextPr().FontFamily.Name == fromN) {
+									replaceObjFont(label, tp.TextPr, chart.getDrawingDocument());
+								}							
+								for(var p = 0; p < content.GetElementsCount(); p++) {
+									var para = content.GetElement(p);
+									for(var r = 0; r < para.GetElementsCount(); r++) {
+										var run = para.GetElement(r);
+										if(run.CompiledPr.FontFamily.Name == fromN)
+											run.ApplyFontFamily(toN),
+											run.GetText() != '' && changed++;
+									}
+								}
+							}
+						}
+					}
+					// data labels
+					var allseries = chart.getAllSeries();
+					for(var s = 0; s < allseries.length; s++) {
+						var series = allseries[s];
+						var points = series.getNumPts();
+						for(var p = 0; p < points.length; p++) {
+							if(points[p].compiledDlb) {
+								var content = points[p].compiledDlb.getDocContent();
+								for(var i = 0; i < content.GetElementsCount(); i++) {
+									var para = content.GetElement(i);
+									if(para.GetCalculatedTextPr && para.GetCalculatedTextPr().FontFamily.Name == fromN) {
+										if(series.dLbls.dLbl && series.dLbls.dLbl.length >= p)
+											replaceObjFont(series.dLbls.dLbl[p], tp.TextPr, chart.getDrawingDocument());
+										else
+											replaceObjFont(series.dLbls, tp.TextPr, chart.getDrawingDocument());
+									}
+									for(var r = 0; r < para.GetElementsCount(); r++) {
+										var run = para.GetElement(r);
+										if(run.CompiledPr.FontFamily.Name == fromN)
+											run.ApplyFontFamily(toN),
+											run.GetText() != '' && changed++;
+									}
+								}
+							}
 						}
 					}
 				}
@@ -754,5 +991,6 @@
 	function byId(id){ return document.getElementById(id); }
 	function esc(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 	function norm(x){ return (x||"").toLowerCase().replace(/[\s_-]+/g,''); }
+	
 
 })(window, undefined);
