@@ -472,11 +472,6 @@
 				return false;
 			}
 
-			var pres = Api.GetPresentation();
-			var slidesCount = (pres && pres.GetSlidesCount && pres.GetSlidesCount()) || 0;
-			var seen = {};
-			var defaultFontUsed = false;
-
 			function resolveThemeAlias(name){
 				if (!name) return name;
 				var s = String(name);
@@ -487,6 +482,11 @@
 				return name;
 			}
 
+
+			var pres = Api.GetPresentation();
+			var slidesCount = (pres && pres.GetSlidesCount && pres.GetSlidesCount()) || 0;
+			var seen = {};
+			var defaultFontUsed = false;
 			var defaultFont = null;
 
 			for (var i = 0; i < slidesCount; i++) {
@@ -601,7 +601,7 @@
 					// axes
 					var axes = chart.Chart.getAllAxes();
 					for(var a = 0; a < axes.length; a++) {
-						if(axes[a].labels) {
+						if(axes[a].labels && axes[a].labels.aLabels) {
 							var labels = axes[a].labels.aLabels;
 							for(var l = 0; l < labels.length; l++) {
 								var content = labels[l].getDocContent();
@@ -619,12 +619,12 @@
 					var allseries = chart.Chart.getAllSeries();
 					for(var s = 0; s < allseries.length; s++) {
 						var series = allseries[s];
-						var points = series.getNumPts();
+						var points = series.getNumPts && series.getNumPts() || [];
 						for(var p = 0; p < points.length; p++) {
 							if(points[p].compiledDlb) {
 								var content = points[p].compiledDlb.getDocContent();
-								for(var i = 0; i < content.GetElementsCount(); i++) {
-									var para = content.GetElement(i);
+								for(var j = 0; j < content.GetElementsCount(); j++) {
+									var para = content.GetElement(j);
 									for(var r = 0; r < para.GetElementsCount(); r++) {
 										var run = para.GetElement(r);
 										add(run.CompiledPr.FontFamily.Name);
