@@ -213,3 +213,82 @@ body {
 
 .clear-btn:after {
     transform: rotate(-45deg);
+}
+
+.custom-checkbox {
+	-webkit-appearance: none;
+	background: var(--background-normal);
+	border: 1px solid var(--border-regular-control);
+	border-radius: 2px;
+	display: inline-block;
+	position: relative;
+	outline: none!important;
+	width: 13px;
+	height: 13px;
+	transition: border-color ease-in-out .15s,box-shadow ease-in-out .15s;
+}
+
+.custom-checkbox:checked:after {
+    content: '';
+    position: absolute;
+    border: 2px solid #444;
+    border: var(--scaled-two-pixel,2px) solid var(--text-normal);
+    border-top: 0 none;
+    border-left: 0 none;
+    transform: rotate(45deg);
+    width: 5px;
+    height: 9px;
+    left: 3px;
+}
+
+.custom-checkbox:focus,
+.custom-checkbox:active {
+	border-color:var(--border-control-focus)!important;
+	transition: border-color ease-in-out .15s,box-shadow ease-in-out .15s;
+}
+
+.custom-checkbox:disabled {
+	opacity: var(--component-disabled-opacity,.4);
+}
+
+.dropdown-menu.active {
+	display: block;
+	z-index: 1000;
+}
+
+.dropdown-menu > li > label {
+    color: var(--text-normal)!important;
+	padding: 5px 10px;
+	display: flex;
+	cursor: pointer;
+}
+
+.dropdown-menu > li> label:hover {
+    background-color: var(--highlight-button-hover);
+}
+
+.dropdown-menu > li > label > input {
+	pointer-events: none;
+}
+
+.btn .caret {
+	pointer-events: none;
+}
+
+#replaceOptions {
+    width: 13px;
+    position: absolute;
+    margin: 1px 1px 1px -14px;
+    border: 0;
+    height: 20px;
+    border-radius: 0;
+    background: none;	
+}
+
+#replaceOptionsMenu {
+	position: fixed; 
+	left: initial; 
+	top: 57px; 
+	min-width: 120px;	
+	z-index: 1050;
+}

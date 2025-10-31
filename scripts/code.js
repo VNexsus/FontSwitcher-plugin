@@ -17,7 +17,7 @@
  */
 (function(window, undefined){
 
-	let state = { from: null, to: null };
+	let state = { from: null, to: null, target: {shapes: true, tables: true, charts: true} };
 
 	var THUMB_BASE_W = 300;
 	var THUMB_BASE_H = (parent && parent.Asc && parent.Asc.FONT_THUMBNAIL_HEIGHT) || 28;
@@ -68,7 +68,7 @@
 		var result = parent.editor.getLogicDocument().RecalcId;
 		if(recalcId != result) {
 			recalcId = result;
-			collectFonts(true);
+			collectFonts(false);
 		}
     };
 
@@ -253,6 +253,70 @@
 
 		var visible = false;
 
+		// replace target options start
+		var replaceOptionsBtn = byId('replaceOptions');
+		replaceOptionsBtn.onclick = function(e) {
+			if(e.target.classList.contains('active')) {
+				e.target.classList.remove('active');
+				e.target.blur();
+				// hide menu
+				var menu = e.target.nextElementSibling && e.target.nextElementSibling.classList.contains('dropdown-menu') ? e.target.nextElementSibling : null;
+				if(menu)
+					menu.classList.remove('active');
+			}
+			else {
+				e.target.classList.add('active')
+				e.target.blur();
+				// show menu
+				var menu = e.target.nextElementSibling && e.target.nextElementSibling.classList.contains('dropdown-menu') ? e.target.nextElementSibling : null;
+				if(menu) {
+					menu.classList.add('active');
+					menu.focus();
+				}
+			}
+		}
+		var replaceOptionsMenu = byId('replaceOptionsMenu');
+		if(replaceOptionsMenu) {
+			for(item of replaceOptionsMenu.children) {
+				item.onclick = function(e) {
+					var inputs = replaceOptionsMenu.getElementsByTagName('input');
+					var count = 0;
+					for(input of inputs){
+						count += input.checked ? 1 : 0;
+						state.target[input.value] = input.checked;
+					}
+					byId('replaceBtn').innerHTML = (inputs.length == count) ? "Заменить всё" : "Заменить в ...";
+					if(count > 1)
+						for(input of inputs) input.disabled = false;
+					else
+						for(input of inputs) input.disabled = input.checked ? true : false;
+				}
+			}
+			replaceOptionsMenu.addEventListener("blur", 
+				function(e) {
+					if(this.contains(e.relatedTarget)) {
+						e.stopPropagation();
+						this.focus();
+						return false;
+					}
+					if(e.relatedTarget != this.previousElementSibling) {
+						this.previousElementSibling && this.previousElementSibling.classList.contains('dropdown-toggle') && this.previousElementSibling.classList.remove('active');
+						this.classList.remove('active');
+						e.preventDefault();
+						e.stopImmediatePropagation();
+						return false;
+					}
+				}, true);
+			replaceOptionsMenu.addEventListener("keydown", 
+				function(e) {
+					if(e.which == 27){
+						this.previousElementSibling && this.previousElementSibling.classList.contains('dropdown-toggle') && this.previousElementSibling.classList.remove('active');
+						this.classList.remove('active');
+					}
+				}, true);
+		}
+		// replace target options end
+
 		function show(text, x, y){
 			if (!text) return;
 			tip.textContent = text;
@@ -320,6 +384,7 @@
 							items[i].classList.remove('selected'), 
 							state[container.id == 'usedFontsList' ? 'from' : 'to'] = null,
 							byId('replaceBtn').disabled = true;
+							byId('replaceOptions').disabled = true;
 					}
 					else
 						items[i].style.display = '', count++, last = i, lastName = items[i].getAttribute("data-name")
@@ -330,6 +395,7 @@
 					items[last].classList.add('selected'), 
 					state[container.id == 'usedFontsList' ? 'from' : 'to'] = lastName,
 					byId('replaceBtn').disabled = !(state.from && state.to);
+					byId('replaceOptions').disabled = !(state.from && state.to);
 				if(q && count == 0)
 					container.appendChild(getStub('Совпадений не найдено'));
 				else if(items.length == 0)
@@ -351,6 +417,9 @@
 			state.from = name;
 			markSelected(uList, it);
 			var b = byId('replaceBtn');
+			if (b)
+				b.disabled = !(state.from && state.to);
+			b = byId('replaceOptions');
 			if (b)
 				b.disabled = !(state.from && state.to);
 		});
@@ -400,6 +469,9 @@
 			state.to = name;
 			markSelected(all, it);
 			var b = byId('replaceBtn');
+			if (b)
+				b.disabled = !(state.from && state.to);
+			var b = byId('replaceOptions');
 			if (b)
 				b.disabled = !(state.from && state.to);
 		});
@@ -656,13 +728,14 @@
 		if (!state.from || !state.to) 
 			return; 
 		
-		window.Asc.scope = { FROM: state.from, TO: state.to};
+		window.Asc.scope = { FROM: state.from, TO: state.to, TARGET: state.target};
 
 		window.Asc.plugin.callCommand(function(){
 			var FROM = Asc.scope.FROM, TO = Asc.scope.TO;
 			var fromN = (FROM||'');
 			var fromNorm = fromN.toLowerCase().replace(/[\s_-]+/g,'');
 			var toN = (TO||'');
+			var target = Asc.scope.TARGET || {all: true};
 			var changed = 0;
 
 			var themeMinorLatin = null, themeMajorLatin = null;
@@ -787,145 +860,152 @@
 			}
 
 			function processSlide(slide, includeImplicit){
-				// shapes
-				var shapes = slide.GetAllShapes();
-				for (var s=0; s<shapes.length; s++){
-					var sh = shapes[s];
-					var dc = sh.GetDocContent && sh.GetDocContent();
-					if (!dc) continue;
-					var ec = 0; try { ec = dc.GetElementsCount(); } catch(e){}
-					for (var i = 0; i < ec; i++){
-						var el = dc.GetElement(i);
-						if (!el) continue;
-						var rc = 0; try { rc = el.GetElementsCount(); } catch(e){}
-						for(var r = 0; r < rc; r++){
-							var run = el.GetElement(r);
-							if (!run) continue;
-							try {
-								var rn = run.GetFontNames()[0];
-								var rtxt = null; try { rtxt = run.GetText && run.GetText(); } catch(e){}
-								if ((rn && match(rn)) || (includeImplicit && !rn && match(null) && rtxt && /\S/.test(String(rtxt)) && !isPlaceholderText(rtxt)))
-								setRun(run, toN);
-							} catch(e){}
-						}
-					}
-				}
-				// tables
-				var drawings = (slide && slide.GetAllDrawings && slide.GetAllDrawings()) || []
-				for (var d = 0; d < drawings.length; d++) {
-					var drawing = drawings[d].Drawing;
-					var tables = (drawing.GetElement && drawing.GetElement().GetAllTables && drawing.GetElement().GetAllTables()) || [];
-					for(var t = 0; t < tables.length; t++) {
-						var table = tables[t];
-						var paras = table.GetAllParagraphs();
-						for(var p = 0; p < paras.length; p++) {
-							for( var e = 0; e < paras[p].GetElementsCount(); e++) {
-								var el = paras[p].GetElement(e);
-								if(el.Pr.Get_FontFamily() == fromN || (!el.Pr.Get_FontFamily() && fromN == 'Arial'))
-									el.Pr.SetFontFamily(toN), changed++;
+				
+				if(target.shapes || target.all){
+					// shapes
+					var shapes = slide.GetAllShapes();
+					for (var s=0; s<shapes.length; s++){
+						var sh = shapes[s];
+						var dc = sh.GetDocContent && sh.GetDocContent();
+						if (!dc) continue;
+						var ec = 0; try { ec = dc.GetElementsCount(); } catch(e){}
+						for (var i = 0; i < ec; i++){
+							var el = dc.GetElement(i);
+							if (!el) continue;
+							var rc = 0; try { rc = el.GetElementsCount(); } catch(e){}
+							for(var r = 0; r < rc; r++){
+								var run = el.GetElement(r);
+								if (!run) continue;
+								try {
+									var rn = run.GetFontNames()[0];
+									var rtxt = null; try { rtxt = run.GetText && run.GetText(); } catch(e){}
+									if ((rn && match(rn)) || (includeImplicit && !rn && match(null) && rtxt && /\S/.test(String(rtxt)) && !isPlaceholderText(rtxt)))
+									setRun(run, toN);
+								} catch(e){}
 							}
 						}
 					}
 				}
-				// charts
-				var charts = (slide && slide.GetAllCharts && slide.GetAllCharts()) || [];
-				var tp = Api.CreateTextPr();
-				tp.SetFontFamily(toN);
-				for(var c = 0; c < charts.length; c++) {
-					const chart = charts[c].Chart;
-					// titles
-					let titles = chart.getAllTitles();
-					for(var t = 0; t < titles.length; t++) {
-						var title = titles[t];
-						var content = title.getDocContent();
-						if(content.GetCalculatedTextPr && content.GetCalculatedTextPr().FontFamily.Name == fromN) {
-							replaceObjFont(title, tp.TextPr, chart.getDrawingDocument());
-						}
-						for(var x = 0; x < content.GetElementsCount(); x++) {
-							var para = content.GetElement(x);
-							para.SelectAll();
-							for(var r = 0; r < para.GetElementsCount(); r++) {
-								var run = para.GetElement(r);
-								if(run.CompiledPr.FontFamily.Name == fromN){
-									run.ApplyFontFamily(toN),
-									run.GetText() != '' && changed++;
+				if(target.tables || target.all){
+					// tables
+					var drawings = (slide && slide.GetAllDrawings && slide.GetAllDrawings()) || []
+					for (var d = 0; d < drawings.length; d++) {
+						var drawing = drawings[d].Drawing;
+						var tables = (drawing.GetElement && drawing.GetElement().GetAllTables && drawing.GetElement().GetAllTables()) || [];
+						for(var t = 0; t < tables.length; t++) {
+							var table = tables[t];
+							var paras = table.GetAllParagraphs();
+							for(var p = 0; p < paras.length; p++) {
+								for( var e = 0; e < paras[p].GetElementsCount(); e++) {
+									var el = paras[p].GetElement(e);
+									if(el.Pr.Get_FontFamily() == fromN || (!el.Pr.Get_FontFamily() && fromN == 'Arial'))
+										el.Pr.SetFontFamily(toN), changed++;
 								}
 							}
 						}
 					}
-					// legend
-					var legend = chart.getLegend();
-					if((legend.txPr.content.Content[0].CompiledPr.Pr && legend.txPr.content.Content[0].CompiledPr.Pr.TextPr.RFonts.Ascii.Name == fromN) || chart.txPr.content.Content[0].GetCalculatedTextPr().FontFamily.Name == fromN) {
-						replaceObjFont(legend, tp.TextPr, chart.getDrawingDocument());
-					}
-					var entries = legend.legendEntryes;
-					for(var e = 0; e < entries.length; e++) {
-						var entry = entries[e];
-						var content = entry.txPr.content.Content;
-						for(var p = 0; p < content.length; p++) {
-							let para = content[p];
-							if(legend.calcEntryes[entry.idx] && legend.calcEntryes[entry.idx].txBody.content.Content[0].GetCalculatedTextPr().FontFamily.Name == fromN) {
-								replaceObjFont(entry, tp.TextPr, chart.getDrawingDocument());
-								changed++;
+				}
+				if(target.charts || target.all){
+					// charts
+					var charts = (slide && slide.GetAllCharts && slide.GetAllCharts()) || [];
+					var tp = Api.CreateTextPr();
+					tp.SetFontFamily(toN);
+					for(var c = 0; c < charts.length; c++) {
+						const chart = charts[c].Chart;
+						// titles
+						let titles = chart.getAllTitles();
+						for(var t = 0; t < titles.length; t++) {
+							var title = titles[t];
+							var content = title.getDocContent();
+							if(content.GetCalculatedTextPr && content.GetCalculatedTextPr().FontFamily.Name == fromN) {
+								replaceObjFont(title, tp.TextPr, chart.getDrawingDocument());
 							}
-						}
-					}
-					entries = legend.calcEntryes;
-					for(var e = 0; e < entries.length; e++) {
-						var entry = entries[e];
-						var content = entry.txBody.content.Content;
-						for(var p = 0; p < content.length; p++) {
-							let para = content[p];
-							if(para.CompiledPr.Pr.TextPr && para.CompiledPr.Pr.TextPr.RFonts.Ascii.Name == fromN) {
-								replaceObjFont(legend, tp.TextPr, chart.getDrawingDocument());
-								changed++;
-							}
-						}
-					}
-					// axes
-					var axes = chart.getAllAxes();
-					for(var a = 0; a < axes.length; a++) {
-						if(axes[a].labels) {
-							var labels = axes[a].labels.aLabels;
-							for(var l = 0; l < labels.length; l++) {
-								var label = labels[l];
-								var content = label.getDocContent();
-								if(content.GetCalculatedTextPr && content.GetCalculatedTextPr().FontFamily.Name == fromN) {
-									replaceObjFont(label, tp.TextPr, chart.getDrawingDocument());
-								}							
-								for(var p = 0; p < content.GetElementsCount(); p++) {
-									var para = content.GetElement(p);
-									for(var r = 0; r < para.GetElementsCount(); r++) {
-										var run = para.GetElement(r);
-										if(run.CompiledPr.FontFamily.Name == fromN)
-											run.ApplyFontFamily(toN),
-											run.GetText() != '' && changed++;
+							for(var x = 0; x < content.GetElementsCount(); x++) {
+								var para = content.GetElement(x);
+								para.SelectAll();
+								for(var r = 0; r < para.GetElementsCount(); r++) {
+									var run = para.GetElement(r);
+									if(run.CompiledPr.FontFamily.Name == fromN){
+										run.ApplyFontFamily(toN),
+										run.GetText() != '' && changed++;
 									}
 								}
 							}
 						}
-					}
-					// data labels
-					var allseries = chart.getAllSeries();
-					for(var s = 0; s < allseries.length; s++) {
-						var series = allseries[s];
-						var points = series.getNumPts();
-						for(var p = 0; p < points.length; p++) {
-							if(points[p].compiledDlb) {
-								var content = points[p].compiledDlb.getDocContent();
-								for(var i = 0; i < content.GetElementsCount(); i++) {
-									var para = content.GetElement(i);
-									if(para.GetCalculatedTextPr && para.GetCalculatedTextPr().FontFamily.Name == fromN) {
-										if(series.dLbls.dLbl && series.dLbls.dLbl.length >= p)
-											replaceObjFont(series.dLbls.dLbl[p], tp.TextPr, chart.getDrawingDocument());
-										else
-											replaceObjFont(series.dLbls, tp.TextPr, chart.getDrawingDocument());
+						// legend
+						var legend = chart.getLegend();
+						if((legend.txPr.content.Content[0].CompiledPr.Pr && legend.txPr.content.Content[0].CompiledPr.Pr.TextPr.RFonts.Ascii.Name == fromN) || chart.txPr.content.Content[0].GetCalculatedTextPr().FontFamily.Name == fromN) {
+							replaceObjFont(legend, tp.TextPr, chart.getDrawingDocument());
+						}
+						var entries = legend.legendEntryes;
+						for(var e = 0; e < entries.length; e++) {
+							var entry = entries[e];
+							var content = entry.txPr.content.Content;
+							for(var p = 0; p < content.length; p++) {
+								let para = content[p];
+								if(legend.calcEntryes[entry.idx] && legend.calcEntryes[entry.idx].txBody.content.Content[0].GetCalculatedTextPr().FontFamily.Name == fromN) {
+									replaceObjFont(entry, tp.TextPr, chart.getDrawingDocument());
+									changed++;
+								}
+							}
+						}
+						entries = legend.calcEntryes;
+						for(var e = 0; e < entries.length; e++) {
+							var entry = entries[e];
+							var content = entry.txBody.content.Content;
+							for(var p = 0; p < content.length; p++) {
+								let para = content[p];
+								if(para.CompiledPr.Pr.TextPr && para.CompiledPr.Pr.TextPr.RFonts.Ascii.Name == fromN) {
+									replaceObjFont(legend, tp.TextPr, chart.getDrawingDocument());
+									changed++;
+								}
+							}
+						}
+						// axes
+						var axes = chart.getAllAxes();
+						for(var a = 0; a < axes.length; a++) {
+							if(axes[a].labels) {
+								var labels = axes[a].labels.aLabels;
+								for(var l = 0; l < labels.length; l++) {
+									var label = labels[l];
+									var content = label.getDocContent();
+									if(content.GetCalculatedTextPr && content.GetCalculatedTextPr().FontFamily.Name == fromN) {
+										replaceObjFont(label, tp.TextPr, chart.getDrawingDocument());
+									}							
+									for(var p = 0; p < content.GetElementsCount(); p++) {
+										var para = content.GetElement(p);
+										for(var r = 0; r < para.GetElementsCount(); r++) {
+											var run = para.GetElement(r);
+											if(run.CompiledPr.FontFamily.Name == fromN)
+												run.ApplyFontFamily(toN),
+												run.GetText() != '' && changed++;
+										}
 									}
-									for(var r = 0; r < para.GetElementsCount(); r++) {
-										var run = para.GetElement(r);
-										if(run.CompiledPr.FontFamily.Name == fromN)
-											run.ApplyFontFamily(toN),
-											run.GetText() != '' && changed++;
+								}
+							}
+						}
+						// data labels
+						var allseries = chart.getAllSeries();
+						for(var s = 0; s < allseries.length; s++) {
+							var series = allseries[s];
+							var points = series.getNumPts();
+							for(var p = 0; p < points.length; p++) {
+								if(points[p].compiledDlb) {
+									var content = points[p].compiledDlb.getDocContent();
+									for(var i = 0; i < content.GetElementsCount(); i++) {
+										var para = content.GetElement(i);
+										if(para.GetCalculatedTextPr && para.GetCalculatedTextPr().FontFamily.Name == fromN) {
+											if(series.dLbls.dLbl && series.dLbls.dLbl.length >= p)
+												replaceObjFont(series.dLbls.dLbl[p], tp.TextPr, chart.getDrawingDocument());
+											else
+												replaceObjFont(series.dLbls, tp.TextPr, chart.getDrawingDocument());
+										}
+										for(var r = 0; r < para.GetElementsCount(); r++) {
+											var run = para.GetElement(r);
+											if(run.CompiledPr.FontFamily.Name == fromN)
+												run.ApplyFontFamily(toN),
+												run.GetText() != '' && changed++;
+										}
 									}
 								}
 							}
@@ -946,6 +1026,7 @@
 			byId('usedSearchBox').value = '';
 			byId('usedSearchBox').dispatchEvent(new Event('input'));
 			byId('replaceBtn').disabled = true;
+			byId('replaceOptions').disabled = true;
 			window.setTimeout(function(){collectFonts(true)}, 10);
 			parent.Common.UI.info({
 				title: "Замена завершена",

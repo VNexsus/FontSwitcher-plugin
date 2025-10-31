@@ -57,7 +57,15 @@
 				</div>
 			</div>
 			<div style="display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 8px; padding-top: 20px;">
-				<button id="replaceBtn" type="button" class="btn-text-default" disabled="" style="min-width: 120px; display: block;">Заменить</button>
+				<div>
+					<button id="replaceBtn" type="button" class="btn-text-default" disabled="" style="min-width: auto; width: 120px">Заменить всё</button>
+					<button id="replaceOptions" type="button" class="btn btn-text-default dropdown-toggle" disabled="" tabindex="0" data-toggle="dropdown"><span class="caret"></span></button>
+					<ul id="replaceOptionsMenu" class="dropdown-menu" tabindex="0" role="menu">
+						<li><label><input type="checkbox" checked style="margin: 0 5px 0 0" class="custom-checkbox" name="relace" value="shapes">в фигурах</label></li>
+						<li><label><input type="checkbox" checked style="margin: 0 5px 0 0" class="custom-checkbox" name="relace" value="tables">в таблицах</label></li>
+						<li><label><input type="checkbox" checked style="margin: 0 5px 0 0" class="custom-checkbox" name="relace" value="charts">в графиках</label></li>
+					</ul>
+				</div>
 				<button id="cancelBtn" type="button" class="btn-text-default" style="display: block; min-width: 120px; margin-top: 8px;">Отменить</button>
 			</div>
 		</div>
