@@ -1,7 +1,7 @@
 {
   "name": "Замена шрифтов",
   "guid": "asc.{33BB9E72-345D-CFE3-514C-9BBB6E462AE5}",
-  "version": "1.8",
+  "version": "1.9",
   "variations": [
     {
       "description": "Замена используемых шрифтов в презентации",

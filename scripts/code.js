@@ -17,7 +17,7 @@
  */
 (function(window, undefined){
 
-	let state = { from: null, to: null, target: {shapes: true, tables: true, charts: true} };
+	let state = { from: null, to: null, target: {shapes: true, tables: true, charts: true, smartart: true} };
 
 	var THUMB_BASE_W = 300;
 	var THUMB_BASE_H = (parent && parent.Asc && parent.Asc.FONT_THUMBNAIL_HEIGHT) || 28;
@@ -706,6 +706,28 @@
 						}
 					}
 				}
+				// smart-arts
+				drawings = (slide && slide.GetAllDrawings && slide.GetAllDrawings()) || []
+				for(var d = 0; d < drawings.length; d++) {
+					if(drawings[d].Drawing && drawings[d].Drawing.arrGraphicObjects) {
+						var objects = drawings[d].Drawing.arrGraphicObjects || [];
+						for(var o = 0; o < objects.length; o++) {
+							if(objects[o].getDocContent) {
+								var content = objects[o].getDocContent();
+								if(content) {
+									for(var p = 0; p < content.GetElementsCount(); p++) {
+										var para = content.GetElement(p);
+										for(var r = 0; r < para.GetElementsCount(); r++) {
+											var run = para.GetElement(r);
+											add(run.CompiledPr.FontFamily.Name);
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+				
 			}
 			var list = Object.keys(seen).sort();
 			return list.join("\n");
@@ -1005,6 +1027,31 @@
 											if(run.CompiledPr.FontFamily.Name == fromN)
 												run.ApplyFontFamily(toN),
 												run.GetText() != '' && changed++;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+				if(target.smartart || target.all){
+					// smart-arts
+					var smarts = (slide && slide.GetAllDrawings && slide.GetAllDrawings()) || []
+					for (var d = 0; d < smarts.length; d++) {
+						if(smarts[d].Drawing && smarts[d].Drawing.arrGraphicObjects) {
+							var objects = smarts[d].Drawing.arrGraphicObjects;
+							for(var o = 0; o < objects.length; o++) {
+								if(objects[o].getDocContent){
+									var content = objects[o].getDocContent();
+									if(content) {
+										for(var p = 0; p < content.GetElementsCount(); p++) {
+											var para = content.GetElement(p);
+											for(var r = 0; r < para.GetElementsCount(); r++) {
+												var run = para.GetElement(r);
+												if(run.CompiledPr.FontFamily.Name == fromN)
+													run.ApplyFontFamily(toN),
+													run.GetText() != '' && changed++;
+											}
 										}
 									}
 								}
